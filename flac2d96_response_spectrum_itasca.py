@@ -27,6 +27,33 @@ except ModuleNotFoundError:
     it = None
 
 
+def _assert_valid_itasca_api() -> None:
+    """
+    Validate that we are using the FLAC2D embedded itasca API.
+
+    A PyPI package named `itasca` exists but does not expose FLAC2D objects
+    like `history`. Users may accidentally install that package and see
+    AttributeError errors.
+    """
+    if it is None:
+        raise RuntimeError(
+            "Could not import `itasca`.\n"
+            "Run this script from FLAC2D 9.6 Python (Program -> Python), "
+            "not from a normal system shell."
+        )
+
+    if not hasattr(it, "history") or not hasattr(it.history, "get"):
+        it_mod_path = getattr(it, "__file__", "<embedded>")
+        raise RuntimeError(
+            "Loaded an `itasca` module without FLAC2D history API.\n"
+            f"Module path: {it_mod_path}\n"
+            "This usually means the PyPI package `itasca` was installed "
+            "(pip install itasca), which is not the FLAC2D embedded API.\n"
+            "Use FLAC2D's built-in Python to run this script, or use the "
+            "file-based script `flac2d96_response_spectrum.py` instead."
+        )
+
+
 def _is_monotonic_non_decreasing(values: Sequence[float]) -> bool:
     return all(values[i + 1] >= values[i] for i in range(len(values) - 1))
 
@@ -78,10 +105,7 @@ def _history_to_series(raw_data: object) -> List[float]:
 
 
 def _get_history_values(history_name: str) -> List[float]:
-    if it is None:
-        raise RuntimeError(
-            "Could not import `itasca`. Run this script from FLAC2D 9.6 Python."
-        )
+    _assert_valid_itasca_api()
     raw = it.history.get(history_name)
     values = _history_to_series(raw)
     if len(values) < 2:
